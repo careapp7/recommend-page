@@ -232,11 +232,12 @@
     </div>
 
     <div id="val-app">
-            <div class="card">
-              <div class="stepRow"><div style="font-size:12px;color:#b8c0dd">Q.1</div><div class="bar"><div style="width:0%"></div></div></div>
-              <div class="q">バレンタイン当日、理想のムーブは？</div>
-              <button class="choiceBtn" data-idx="0"><div class="dot"></div>ストレートに渡して、一言添える</button><button class="choiceBtn" data-idx="1"><div class="dot"></div>軽いノリで渡して、反応を見る</button><button class="choiceBtn" data-idx="2"><div class="dot"></div>当日は様子見。別日に渡したい</button>
-            </div></div>
+      <div class="card">
+        <div class="stepRow"><div style="font-size:12px;color:#b8c0dd">Q.1</div><div class="bar"><div style="width:0%"></div></div></div>
+        <div class="q">バレンタイン当日、理想のムーブは？</div>
+        <button class="choiceBtn" data-idx="0"><div class="dot"></div>ストレートに渡して、一言添える</button><button class="choiceBtn" data-idx="1"><div class="dot"></div>軽いノリで渡して、反応を見る</button><button class="choiceBtn" data-idx="2"><div class="dot"></div>当日は様子見。別日に渡したい</button>
+      </div>
+    </div>
   </div>
 
   <div class="bottomBar">
@@ -279,7 +280,9 @@
         ]
       };
 
-      let state = { step: 0, score: { A:0, B:0, C:0 } };
+      // ✅ 修正：answers（履歴）を追加
+      let state = { step: 0, score: { A:0, B:0, C:0 }, answers: [] };
+
       const app = document.getElementById("val-app");
       const backBtn = document.getElementById("val-backBtn");
       const resetBtn = document.getElementById("val-resetBtn");
@@ -321,16 +324,45 @@
         }
       }
 
+      // ✅ 修正：選択時に「どの設問でどの加点をしたか」を記録
       function choose(idx){
         const sc = questions[state.step].choices[idx].s;
+
         Object.keys(sc).forEach(k => state.score[k] += sc[k]);
+
+        // 履歴保存（戻る時に引き算できるように）
+        state.answers[state.step] = { idx: Number(idx), sc };
+
         state.step++;
         render();
         document.querySelector('.scroll-area').scrollTo(0,0);
       }
 
-      backBtn.onclick = () => { if(state.step>0){ state.step--; state.score={A:0,B:0,C:0}; render(); } };
-      resetBtn.onclick = () => { state.step=0; state.score={A:0,B:0,C:0}; render(); };
+      // ✅ 修正：戻る＝直前の設問の加点だけ取り消して戻る
+      backBtn.onclick = () => {
+        if(state.step > 0){
+          state.step--;
+
+          const prev = state.answers[state.step];
+          if(prev && prev.sc){
+            Object.keys(prev.sc).forEach(k => state.score[k] -= prev.sc[k]);
+          }
+
+          state.answers[state.step] = undefined;
+
+          render();
+          document.querySelector('.scroll-area').scrollTo(0,0);
+        }
+      };
+
+      // ✅ 修正：リセットは履歴も消す
+      resetBtn.onclick = () => {
+        state.step = 0;
+        state.score = {A:0,B:0,C:0};
+        state.answers = [];
+        render();
+        document.querySelector('.scroll-area').scrollTo(0,0);
+      };
 
       render();
     })();
