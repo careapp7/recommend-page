@@ -9,10 +9,6 @@
 
 <div id="valentine-scope">
   <style>
-    /* ▼▼▼ 設定: このままのコードでOKです ▼▼▼
-      横長のバナー画像全体を、枠内にきれいに収める設定になっています。
-    */
-    
     #valentine-scope {
       --v-bg: #0b1020;
       --v-text: #eef2ff;
@@ -26,7 +22,7 @@
         radial-gradient(900px 520px at 20% 10%, rgba(255,102,178,.35) 0%, rgba(255,102,178,0) 60%),
         radial-gradient(900px 520px at 80% 25%, rgba(124,140,255,.35) 0%, rgba(124,140,255,0) 55%),
         linear-gradient(180deg, #0b1020 0%, #060a14 100%);
-      
+
       position: relative;
       width: 100%;
       height: 100%;
@@ -170,18 +166,16 @@
       gap: 12px;
       align-items: center;
     }
-    
-    /* ▼▼▼ サムネイル画像のスタイル ▼▼▼ */
+
     #valentine-scope .avatar {
-      width: 80px;       /* 横幅 */
-      height: 60px;      /* 高さ */
+      width: 80px;
+      height: 60px;
       border-radius: 8px;
       background: rgba(255,255,255,0.05);
-      object-fit: contain; /* 画像全体を切らずに収める */
+      object-fit: contain;
       object-position: center;
       flex-shrink: 0;
     }
-    /* ▲▲▲ ここまで ▲▲▲ */
 
     #valentine-scope .ctaBtn {
       display: inline-block;
@@ -219,7 +213,10 @@
     }
     #valentine-scope .navBtn:disabled { opacity: 0.3; }
 
-    @keyframes val-slideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes val-slideUp {
+      from { opacity:0; transform:translateY(10px); }
+      to { opacity:1; transform:translateY(0); }
+    }
   </style>
 
   <div class="scroll-area">
@@ -233,9 +230,14 @@
 
     <div id="val-app">
       <div class="card">
-        <div class="stepRow"><div style="font-size:12px;color:#b8c0dd">Q.1</div><div class="bar"><div style="width:0%"></div></div></div>
+        <div class="stepRow">
+          <div style="font-size:12px;color:#b8c0dd">Q.1</div>
+          <div class="bar"><div style="width:0%"></div></div>
+        </div>
         <div class="q">バレンタイン当日、理想のムーブは？</div>
-        <button class="choiceBtn" data-idx="0"><div class="dot"></div>ストレートに渡して、一言添える</button><button class="choiceBtn" data-idx="1"><div class="dot"></div>軽いノリで渡して、反応を見る</button><button class="choiceBtn" data-idx="2"><div class="dot"></div>当日は様子見。別日に渡したい</button>
+        <button class="choiceBtn" data-idx="0"><div class="dot"></div>ストレートに渡して、一言添える</button>
+        <button class="choiceBtn" data-idx="1"><div class="dot"></div>軽いノリで渡して、反応を見る</button>
+        <button class="choiceBtn" data-idx="2"><div class="dot"></div>当日は様子見。別日に渡したい</button>
       </div>
     </div>
   </div>
@@ -261,26 +263,84 @@
         C: { title: "じっくりミルクタイプ 🥛", body: "安心感と誠実さで距離を縮めるタイプ。相手の心を大切に扱えるのが魅力です。遠慮しすぎてチャンスを逃さないで。", tip: "💡 おすすめの一手：一言メモを添える。『いつもありがとう』だけで十分強い。" }
       };
 
-      // 画像生成用ダミーURL（80x60）
-      const getImg = (c) => `https://placehold.co/80x60/${c}/FFF?text=Thumb`;
+      // --- Google Sheets (CSV) から占い師リストを読む ---
+      const SHEET_CSV_URL =
+        "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=0&single=true&output=csv";
 
-      // ★★★ ここに画像URLを入れてください ★★★
-      const recs = {
-        A: [
-          {n:"yoko先生", s:"レジェンド", t:"刺さる一言", u:"careapp://counselor?code=29678", i:"https://image.careapp.jp/original/app_thumb/4-39ScHJhL"},
-          {n:"❤️アレキ❤️霊視＊縁結び❤️", s:"プラチナプラス", t:"渡す日設計", u:"careapp://counselor?code=8090981", i:"https://image.careapp.jp/original/main_thumb/p4-8090981"}
-        ],
-        B: [
-          {n:"結衣先生", s:"数秘", t:"距離感調整", u:"careapp://counselor?code=YUI", i:getImg("1e293b")},
-          {n:"蓮先生", s:"四柱推命", t:"攻め時判断", u:"careapp://counselor?code=REN", i:getImg("334155")}
-        ],
-        C: [
-          {n:"紬先生", s:"タロット", t:"表現の整え", u:"careapp://counselor?code=TSUMUGI", i:getImg("1e293b")},
-          {n:"朔先生", s:"占星術", t:"自己理解", u:"careapp://counselor?code=SAKU", i:getImg("334155")}
-        ]
-      };
+      // 読み込み前でも落ちないように空で用意
+      let recs = { A: [], B: [], C: [] };
 
-      // ✅ 修正：answers（履歴）を追加
+      // カンマ/改行/ダブルクォートに耐えるCSVパーサ
+      function parseCSV(text){
+        const rows = [];
+        let row = [], cell = "", inQuotes = false;
+
+        for(let i=0;i<text.length;i++){
+          const c = text[i];
+          const next = text[i+1];
+
+          if(c === '"'){
+            if(inQuotes && next === '"'){ cell += '"'; i++; }
+            else { inQuotes = !inQuotes; }
+          } else if(c === ',' && !inQuotes){
+            row.push(cell); cell = "";
+          } else if((c === '\n' || c === '\r') && !inQuotes){
+            if(c === '\r' && next === '\n') i++;
+            row.push(cell);
+            if(row.length > 1 || (row[0] ?? "") !== "") rows.push(row);
+            row = []; cell = "";
+          } else {
+            cell += c;
+          }
+        }
+        row.push(cell);
+        if(row.length > 1 || (row[0] ?? "") !== "") rows.push(row);
+
+        const headers = (rows.shift() || []).map(h => (h || "").trim());
+        return rows.map(r => {
+          const obj = {};
+          headers.forEach((h, idx) => obj[h] = (r[idx] ?? "").trim());
+          return obj;
+        });
+      }
+
+      async function loadRecsFromSheet(){
+        try{
+          const url = SHEET_CSV_URL + "&ts=" + Date.now(); // キャッシュ回避
+          const res = await fetch(url);
+          const csv = await res.text();
+          const rows = parseCSV(csv);
+
+          const grouped = { A: [], B: [], C: [] };
+
+          rows.forEach(r => {
+            const type = (r.type || "").toUpperCase();
+            if(!grouped[type]) return;
+
+            grouped[type].push({
+              n: r.name || "",
+              s: r.badge || "",
+              t: r.text || "",
+              u: r.url || "",
+              i: r.img || "",
+              order: Number(r.order || 999)
+            });
+          });
+
+          Object.keys(grouped).forEach(k => {
+            grouped[k].sort((a,b) => a.order - b.order);
+            grouped[k] = grouped[k].map(({order, ...rest}) => rest);
+          });
+
+          recs = grouped;
+          render(); // 読み込み後に再描画（結果画面でも反映される）
+        } catch(e){
+          console.log("failed to load recs:", e);
+        }
+      }
+
+      // --- 診断の状態 ---
+      // answers: どの設問でどんな加点をしたか（戻るで引ける）
       let state = { step: 0, score: { A:0, B:0, C:0 }, answers: [] };
 
       const app = document.getElementById("val-app");
@@ -289,27 +349,36 @@
 
       function render(){
         backBtn.disabled = (state.step === 0);
-        
+
         if(state.step < questions.length){
           const q = questions[state.step];
-          const pct = Math.round((state.step / questions.length)*100);
+          const pct = Math.round((state.step / questions.length) * 100);
+
           app.innerHTML = `
             <div class="card">
-              <div class="stepRow"><div style="font-size:12px;color:#b8c0dd">Q.${state.step+1}</div><div class="bar"><div style="width:${pct}%"></div></div></div>
+              <div class="stepRow">
+                <div style="font-size:12px;color:#b8c0dd">Q.${state.step+1}</div>
+                <div class="bar"><div style="width:${pct}%"></div></div>
+              </div>
               <div class="q">${q.text}</div>
               ${q.choices.map((c,i)=>`<button class="choiceBtn" data-idx="${i}"><div class="dot"></div>${c.l}</button>`).join('')}
             </div>`;
+
           app.querySelectorAll('.choiceBtn').forEach(b => b.onclick = () => choose(b.dataset.idx));
         } else {
           const win = Object.entries(state.score).sort((a,b)=>b[1]-a[1])[0][0];
           const r = results[win];
+
+          const list = (recs[win] && recs[win].length) ? recs[win] : [];
+
           app.innerHTML = `
             <div class="card">
               <div class="resultTitle">${r.title}</div>
               <div class="resultBody">${r.body}</div>
               <div style="background:rgba(124,140,255,.1);padding:10px;border-radius:8px;font-size:13px;margin-bottom:15px">${r.tip}</div>
               <div style="font-size:14px;font-weight:bold;margin-bottom:10px;color:#eef2ff">相性の良い占い師</div>
-              ${recs[win].map(x=>`
+
+              ${list.length ? list.map(x=>`
                 <div class="recCard">
                   <img class="avatar" src="${x.i}">
                   <div style="flex:1; min-width:0;">
@@ -319,18 +388,21 @@
                   </div>
                   <a href="${x.u}" class="ctaBtn">見る</a>
                 </div>
-              `).join('')}
+              `).join('') : `
+                <div style="font-size:12px;color:#b8c0dd;opacity:.9;">
+                  （占い師リストを読み込み中、または未設定です）
+                </div>
+              `}
             </div>`;
         }
       }
 
-      // ✅ 修正：選択時に「どの設問でどの加点をしたか」を記録
       function choose(idx){
         const sc = questions[state.step].choices[idx].s;
 
         Object.keys(sc).forEach(k => state.score[k] += sc[k]);
 
-        // 履歴保存（戻る時に引き算できるように）
+        // 履歴保存（戻るで引くため）
         state.answers[state.step] = { idx: Number(idx), sc };
 
         state.step++;
@@ -338,7 +410,7 @@
         document.querySelector('.scroll-area').scrollTo(0,0);
       }
 
-      // ✅ 修正：戻る＝直前の設問の加点だけ取り消して戻る
+      // 自然な戻る：直前の設問の加点だけ取り消して戻る
       backBtn.onclick = () => {
         if(state.step > 0){
           state.step--;
@@ -355,7 +427,7 @@
         }
       };
 
-      // ✅ 修正：リセットは履歴も消す
+      // リセット：スコアも履歴も全部初期化
       resetBtn.onclick = () => {
         state.step = 0;
         state.score = {A:0,B:0,C:0};
@@ -364,7 +436,9 @@
         document.querySelector('.scroll-area').scrollTo(0,0);
       };
 
+      // 初期描画 & 占い師リスト読み込み
       render();
+      loadRecsFromSheet();
     })();
   </script>
 </div>
