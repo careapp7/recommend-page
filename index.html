@@ -69,6 +69,7 @@
       color: var(--v-muted);
       font-size: 12px;
       margin-top: 4px;
+      white-space: pre-line;
     }
 
     #valentine-scope .chip {
@@ -155,6 +156,7 @@
       font-size: 14px;
       line-height: 1.7;
       margin-bottom: 16px;
+      white-space: pre-line;
     }
     #valentine-scope .recCard {
       border:1px solid rgba(255,255,255,.1);
@@ -224,10 +226,10 @@
   <div class="scroll-area">
     <div class="topbar">
       <div>
-        <h1 class="title">Love Psychology 🍫</h1>
-        <div class="subtitle">バレンタイン直前。<br>今のあなたの「攻め方」診断</div>
+        <h1 class="title" id="ui-title">Love Psychology 🍫</h1>
+        <div class="subtitle" id="ui-subtitle">バレンタイン直前。<br>今のあなたの「攻め方」診断</div>
       </div>
-      <div class="chip">30秒</div>
+      <div class="chip" id="ui-chip">30秒</div>
     </div>
 
     <div id="val-app"></div>
@@ -240,15 +242,23 @@
 
   <script>
     (function(){
-      // ✅ 設問CSV（gid=1750400212）
+      // ✅ 設問（前の公開シート）
       const QUESTIONS_CSV_URL =
         "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=1750400212&single=true&output=csv";
 
-      // ✅ 占い師CSV（gid=0）
+      // ✅ 占い師（前の公開シート）
       const RECS_CSV_URL =
         "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=0&single=true&output=csv";
 
-      // 保険：読み込み失敗しても動く固定設問（いまの5問）
+      // ✅ results/settings（今回の editリンクのシート）
+      // ※ 共有設定が「リンクを知ってる全員が閲覧可」になってないと読めません
+      const RESULTS_CSV_URL =
+        "https://docs.google.com/spreadsheets/d/1-iNODBXpVHuF8500kBHvuJJG7XrR_pBGt-8FmClDB5o/gviz/tq?tqx=out:csv&gid=257661142";
+
+      const SETTINGS_CSV_URL =
+        "https://docs.google.com/spreadsheets/d/1-iNODBXpVHuF8500kBHvuJJG7XrR_pBGt-8FmClDB5o/gviz/tq?tqx=out:csv&gid=1350915999";
+
+      // 保険：読み込み失敗しても動く固定設問（5問）
       const fallbackQuestions = [
         { text: "バレンタイン当日、理想のムーブは？", choices: [{l:"ストレートに渡して、一言添える",s:{A:2}},{l:"軽いノリで渡して、反応を見る",s:{B:2}},{l:"当日は様子見。別日に渡したい",s:{C:2}}] },
         { text: "チョコを選ぶならどれ？", choices: [{l:"限定・新作・話題のやつ（勢い！）",s:{A:2}},{l:"上品で大人っぽい、ちょいビター系",s:{B:2}},{l:"定番の安心感。ミルク系でほっとする",s:{C:2}}] },
@@ -257,24 +267,45 @@
         { text: "渡すならどんな形がしっくりくる？", choices: [{l:"直接渡す！短くても言葉を添える",s:{A:2}},{l:"さりげなく。二人きりのタイミングで",s:{B:2}},{l:"手紙 or メモで気持ちを丁寧に伝える",s:{C:2}}] }
       ];
 
-      const results = {
+      // 保険：結果文（読み込み失敗でも表示できる）
+      let results = {
         A: { title: "攻めスイートタイプ 🍓", body: "好きになったら素直に行けるタイプ。恋は“流れ”より“一手”で動かすのが得意です。勢いのまま詰めすぎないのがポイント。", tip: "💡 おすすめの一手：『このあと少しだけ時間ある？』と軽い提案を。" },
         B: { title: "駆け引きビタータイプ ☕", body: "相手の温度感を読みながら、ちょうどいい距離に合わせられるタイプ。考えすぎて動けなくならないように注意。", tip: "💡 おすすめの一手：『会えたら渡したいものがある』と含みを持たせて。" },
         C: { title: "じっくりミルクタイプ 🥛", body: "安心感と誠実さで距離を縮めるタイプ。相手の心を大切に扱えるのが魅力です。遠慮しすぎてチャンスを逃さないで。", tip: "💡 おすすめの一手：一言メモを添える。『いつもありがとう』だけで十分強い。" }
+      };
+
+      // 保険：固定テキスト
+      let ui = {
+        title: "Love Psychology 🍫",
+        subtitle: "バレンタイン直前。\n今のあなたの「攻め方」診断",
+        chip: "30秒",
+        recsHeading: "相性の良い占い師",
+        loadingRecs: "（占い師リストを読み込み中、または未設定です）",
+        noQuestions: "設問がありません"
       };
 
       // 状態
       let questions = fallbackQuestions;
       let recs = { A: [], B: [], C: [] };
 
-      // 自然な戻る用
+      // 自然な戻る用（加点履歴）
       let state = { step: 0, score: { A:0, B:0, C:0 }, answers: [] };
 
       const app = document.getElementById("val-app");
       const backBtn = document.getElementById("val-backBtn");
       const resetBtn = document.getElementById("val-resetBtn");
 
-      // CSVパーサ（引用符/改行に対応）
+      const uiTitle = document.getElementById("ui-title");
+      const uiSubtitle = document.getElementById("ui-subtitle");
+      const uiChip = document.getElementById("ui-chip");
+
+      function applyUI(){
+        uiTitle.textContent = ui.title || "";
+        uiSubtitle.textContent = (ui.subtitle || "").replace(/\\n/g, "\n");
+        uiChip.textContent = ui.chip || "";
+      }
+
+      // CSVパーサ（引用符/改行対応）
       function parseCSV(text){
         const rows = [];
         let row = [], cell = "", inQuotes = false;
@@ -308,7 +339,6 @@
         });
       }
 
-      // score文字列（例 A2）→ {A:2}
       function parseScore(type, pts){
         const t = (type || "").toUpperCase();
         const p = Number(pts || 0);
@@ -327,33 +357,21 @@
               const qtext = r.qtext || "";
               if(!qtext) return null;
 
-              const c1 = (r.choice1 || "");
-              const c2 = (r.choice2 || "");
-              const c3 = (r.choice3 || "");
-              const t1 = (r.type1 || "");
-              const t2 = (r.type2 || "");
-              const t3 = (r.type3 || "");
-              const p1 = (r.pts1 || "");
-              const p2 = (r.pts2 || "");
-              const p3 = (r.pts3 || "");
-
               const choices = [];
-              if(c1) choices.push({ l: c1, s: parseScore(t1, p1) });
-              if(c2) choices.push({ l: c2, s: parseScore(t2, p2) });
-              if(c3) choices.push({ l: c3, s: parseScore(t3, p3) });
+              if(r.choice1) choices.push({ l: r.choice1, s: parseScore(r.type1, r.pts1) });
+              if(r.choice2) choices.push({ l: r.choice2, s: parseScore(r.type2, r.pts2) });
+              if(r.choice3) choices.push({ l: r.choice3, s: parseScore(r.type3, r.pts3) });
 
               if(choices.length < 2) return null;
 
               return { qid: Number(r.qid || 999), text: qtext, choices };
             })
             .filter(Boolean)
-            .sort((a,b) => (a.qid - b.qid))
+            .sort((a,b) => a.qid - b.qid)
             .map(x => ({ text: x.text, choices: x.choices }));
 
           if(built.length){
             questions = built;
-
-            // 設問数が変わる可能性があるので、状態リセット（安全）
             state.step = 0;
             state.score = {A:0,B:0,C:0};
             state.answers = [];
@@ -399,13 +417,68 @@
         }
       }
 
+      async function loadResultsFromSheet(){
+        try{
+          const res = await fetch(RESULTS_CSV_URL + "&ts=" + Date.now());
+          const csv = await res.text();
+          const rows = parseCSV(csv);
+
+          const map = {};
+          rows.forEach(r => {
+            const t = (r.type || "").toUpperCase();
+            if(!t) return;
+            map[t] = {
+              title: r.title || "",
+              body: (r.body || "").replace(/\\n/g, "\n"),
+              tip: (r.tip || "").replace(/\\n/g, "\n")
+            };
+          });
+
+          if(map.A || map.B || map.C){
+            results = {
+              A: map.A || results.A,
+              B: map.B || results.B,
+              C: map.C || results.C
+            };
+            render();
+          }
+        } catch(e){
+          console.log("failed to load results:", e);
+        }
+      }
+
+      async function loadSettingsFromSheet(){
+        try{
+          const res = await fetch(SETTINGS_CSV_URL + "&ts=" + Date.now());
+          const csv = await res.text();
+          const rows = parseCSV(csv);
+
+          const map = {};
+          rows.forEach(r => {
+            const key = (r.key || "").trim();
+            const value = (r.value || "");
+            if(key) map[key] = value;
+          });
+
+          ui = {
+            ...ui,
+            ...map
+          };
+
+          applyUI();
+          render();
+        } catch(e){
+          console.log("failed to load settings:", e);
+        }
+      }
+
       function render(){
         backBtn.disabled = (state.step === 0);
 
         if(!questions || !questions.length){
           app.innerHTML = `
             <div class="card">
-              <div class="q">設問がありません</div>
+              <div class="q">${ui.noQuestions}</div>
               <div style="font-size:12px;color:#b8c0dd;">GSSのquestionsシートを確認してね。</div>
             </div>`;
           return;
@@ -428,15 +501,15 @@
           app.querySelectorAll('.choiceBtn').forEach(b => b.onclick = () => choose(b.dataset.idx));
         } else {
           const win = Object.entries(state.score).sort((a,b)=>b[1]-a[1])[0][0];
-          const r = results[win];
+          const r = results[win] || { title:"", body:"", tip:"" };
           const list = (recs[win] && recs[win].length) ? recs[win] : [];
 
           app.innerHTML = `
             <div class="card">
               <div class="resultTitle">${r.title}</div>
               <div class="resultBody">${r.body}</div>
-              <div style="background:rgba(124,140,255,.1);padding:10px;border-radius:8px;font-size:13px;margin-bottom:15px">${r.tip}</div>
-              <div style="font-size:14px;font-weight:bold;margin-bottom:10px;color:#eef2ff">相性の良い占い師</div>
+              <div style="background:rgba(124,140,255,.1);padding:10px;border-radius:8px;font-size:13px;margin-bottom:15px;white-space:pre-line;">${r.tip}</div>
+              <div style="font-size:14px;font-weight:bold;margin-bottom:10px;color:#eef2ff">${ui.recsHeading}</div>
 
               ${list.length ? list.map(x=>`
                 <div class="recCard">
@@ -450,7 +523,7 @@
                 </div>
               `).join('') : `
                 <div style="font-size:12px;color:#b8c0dd;opacity:.9;">
-                  （占い師リストを読み込み中、または未設定です）
+                  ${ui.loadingRecs}
                 </div>
               `}
             </div>`;
@@ -492,11 +565,15 @@
         document.querySelector('.scroll-area').scrollTo(0,0);
       };
 
-      // 初期表示
+      // 初期
+      applyUI();
       render();
-      // GSSから読み込み（設問・占い師）
+
+      // 読み込み（全部GSS）
       loadQuestionsFromSheet();
       loadRecsFromSheet();
+      loadResultsFromSheet();
+      loadSettingsFromSheet();
     })();
   </script>
 </div>
