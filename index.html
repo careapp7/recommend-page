@@ -167,14 +167,16 @@
       align-items: center;
     }
 
+    /* ✅ 丸アイコン（見やすいサイズ） */
     #valentine-scope .avatar {
-      width: 80px;
-      height: 60px;
-      border-radius: 8px;
-      background: rgba(255,255,255,0.05);
-      object-fit: contain;
+      width: 56px;
+      height: 56px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      object-fit: cover;   /* 顔が大きく見える */
       object-position: center;
       flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,.12);
     }
 
     #valentine-scope .ctaBtn {
@@ -267,10 +269,8 @@
       const SHEET_CSV_URL =
         "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=0&single=true&output=csv";
 
-      // 読み込み前でも落ちないように空で用意
       let recs = { A: [], B: [], C: [] };
 
-      // カンマ/改行/ダブルクォートに耐えるCSVパーサ
       function parseCSV(text){
         const rows = [];
         let row = [], cell = "", inQuotes = false;
@@ -306,7 +306,7 @@
 
       async function loadRecsFromSheet(){
         try{
-          const url = SHEET_CSV_URL + "&ts=" + Date.now(); // キャッシュ回避
+          const url = SHEET_CSV_URL + "&ts=" + Date.now();
           const res = await fetch(url);
           const csv = await res.text();
           const rows = parseCSV(csv);
@@ -333,14 +333,13 @@
           });
 
           recs = grouped;
-          render(); // 読み込み後に再描画（結果画面でも反映される）
+          render();
         } catch(e){
           console.log("failed to load recs:", e);
         }
       }
 
-      // --- 診断の状態 ---
-      // answers: どの設問でどんな加点をしたか（戻るで引ける）
+      // --- 診断の状態（自然な戻る対応） ---
       let state = { step: 0, score: { A:0, B:0, C:0 }, answers: [] };
 
       const app = document.getElementById("val-app");
@@ -402,7 +401,6 @@
 
         Object.keys(sc).forEach(k => state.score[k] += sc[k]);
 
-        // 履歴保存（戻るで引くため）
         state.answers[state.step] = { idx: Number(idx), sc };
 
         state.step++;
@@ -410,7 +408,6 @@
         document.querySelector('.scroll-area').scrollTo(0,0);
       }
 
-      // 自然な戻る：直前の設問の加点だけ取り消して戻る
       backBtn.onclick = () => {
         if(state.step > 0){
           state.step--;
@@ -427,7 +424,6 @@
         }
       };
 
-      // リセット：スコアも履歴も全部初期化
       resetBtn.onclick = () => {
         state.step = 0;
         state.score = {A:0,B:0,C:0};
@@ -436,7 +432,6 @@
         document.querySelector('.scroll-area').scrollTo(0,0);
       };
 
-      // 初期描画 & 占い師リスト読み込み
       render();
       loadRecsFromSheet();
     })();
