@@ -167,13 +167,13 @@
       align-items: center;
     }
 
-    /* ✅ 丸アイコン（見やすいサイズ） */
+    /* ✅ 丸アイコン */
     #valentine-scope .avatar {
       width: 56px;
       height: 56px;
       border-radius: 999px;
       background: rgba(255,255,255,0.06);
-      object-fit: cover;   /* 顔が大きく見える */
+      object-fit: cover;
       object-position: center;
       flex-shrink: 0;
       border: 1px solid rgba(255,255,255,.12);
@@ -230,18 +230,7 @@
       <div class="chip">30秒</div>
     </div>
 
-    <div id="val-app">
-      <div class="card">
-        <div class="stepRow">
-          <div style="font-size:12px;color:#b8c0dd">Q.1</div>
-          <div class="bar"><div style="width:0%"></div></div>
-        </div>
-        <div class="q">バレンタイン当日、理想のムーブは？</div>
-        <button class="choiceBtn" data-idx="0"><div class="dot"></div>ストレートに渡して、一言添える</button>
-        <button class="choiceBtn" data-idx="1"><div class="dot"></div>軽いノリで渡して、反応を見る</button>
-        <button class="choiceBtn" data-idx="2"><div class="dot"></div>当日は様子見。別日に渡したい</button>
-      </div>
-    </div>
+    <div id="val-app"></div>
   </div>
 
   <div class="bottomBar">
@@ -251,7 +240,16 @@
 
   <script>
     (function(){
-      const questions = [
+      // ✅ 設問CSV（gid=1750400212）
+      const QUESTIONS_CSV_URL =
+        "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=1750400212&single=true&output=csv";
+
+      // ✅ 占い師CSV（gid=0）
+      const RECS_CSV_URL =
+        "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=0&single=true&output=csv";
+
+      // 保険：読み込み失敗しても動く固定設問（いまの5問）
+      const fallbackQuestions = [
         { text: "バレンタイン当日、理想のムーブは？", choices: [{l:"ストレートに渡して、一言添える",s:{A:2}},{l:"軽いノリで渡して、反応を見る",s:{B:2}},{l:"当日は様子見。別日に渡したい",s:{C:2}}] },
         { text: "チョコを選ぶならどれ？", choices: [{l:"限定・新作・話題のやつ（勢い！）",s:{A:2}},{l:"上品で大人っぽい、ちょいビター系",s:{B:2}},{l:"定番の安心感。ミルク系でほっとする",s:{C:2}}] },
         { text: "気になる人から返信が遅いときは？", choices: [{l:"待つより動く。軽く追いメッセする",s:{A:2}},{l:"既読/未読や空気を見て調整",s:{B:2}},{l:"相手のペースがあるし…と一旦落ち着く",s:{C:2}}] },
@@ -265,12 +263,18 @@
         C: { title: "じっくりミルクタイプ 🥛", body: "安心感と誠実さで距離を縮めるタイプ。相手の心を大切に扱えるのが魅力です。遠慮しすぎてチャンスを逃さないで。", tip: "💡 おすすめの一手：一言メモを添える。『いつもありがとう』だけで十分強い。" }
       };
 
-      // --- Google Sheets (CSV) から占い師リストを読む ---
-      const SHEET_CSV_URL =
-        "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=0&single=true&output=csv";
-
+      // 状態
+      let questions = fallbackQuestions;
       let recs = { A: [], B: [], C: [] };
 
+      // 自然な戻る用
+      let state = { step: 0, score: { A:0, B:0, C:0 }, answers: [] };
+
+      const app = document.getElementById("val-app");
+      const backBtn = document.getElementById("val-backBtn");
+      const resetBtn = document.getElementById("val-resetBtn");
+
+      // CSVパーサ（引用符/改行に対応）
       function parseCSV(text){
         const rows = [];
         let row = [], cell = "", inQuotes = false;
@@ -304,10 +308,66 @@
         });
       }
 
+      // score文字列（例 A2）→ {A:2}
+      function parseScore(type, pts){
+        const t = (type || "").toUpperCase();
+        const p = Number(pts || 0);
+        if(!t || isNaN(p)) return {};
+        return { [t]: p };
+      }
+
+      async function loadQuestionsFromSheet(){
+        try{
+          const res = await fetch(QUESTIONS_CSV_URL + "&ts=" + Date.now());
+          const csv = await res.text();
+          const rows = parseCSV(csv);
+
+          const built = rows
+            .map(r => {
+              const qtext = r.qtext || "";
+              if(!qtext) return null;
+
+              const c1 = (r.choice1 || "");
+              const c2 = (r.choice2 || "");
+              const c3 = (r.choice3 || "");
+              const t1 = (r.type1 || "");
+              const t2 = (r.type2 || "");
+              const t3 = (r.type3 || "");
+              const p1 = (r.pts1 || "");
+              const p2 = (r.pts2 || "");
+              const p3 = (r.pts3 || "");
+
+              const choices = [];
+              if(c1) choices.push({ l: c1, s: parseScore(t1, p1) });
+              if(c2) choices.push({ l: c2, s: parseScore(t2, p2) });
+              if(c3) choices.push({ l: c3, s: parseScore(t3, p3) });
+
+              if(choices.length < 2) return null;
+
+              return { qid: Number(r.qid || 999), text: qtext, choices };
+            })
+            .filter(Boolean)
+            .sort((a,b) => (a.qid - b.qid))
+            .map(x => ({ text: x.text, choices: x.choices }));
+
+          if(built.length){
+            questions = built;
+
+            // 設問数が変わる可能性があるので、状態リセット（安全）
+            state.step = 0;
+            state.score = {A:0,B:0,C:0};
+            state.answers = [];
+          }
+
+          render();
+        } catch(e){
+          console.log("failed to load questions:", e);
+        }
+      }
+
       async function loadRecsFromSheet(){
         try{
-          const url = SHEET_CSV_URL + "&ts=" + Date.now();
-          const res = await fetch(url);
+          const res = await fetch(RECS_CSV_URL + "&ts=" + Date.now());
           const csv = await res.text();
           const rows = parseCSV(csv);
 
@@ -339,15 +399,17 @@
         }
       }
 
-      // --- 診断の状態（自然な戻る対応） ---
-      let state = { step: 0, score: { A:0, B:0, C:0 }, answers: [] };
-
-      const app = document.getElementById("val-app");
-      const backBtn = document.getElementById("val-backBtn");
-      const resetBtn = document.getElementById("val-resetBtn");
-
       function render(){
         backBtn.disabled = (state.step === 0);
+
+        if(!questions || !questions.length){
+          app.innerHTML = `
+            <div class="card">
+              <div class="q">設問がありません</div>
+              <div style="font-size:12px;color:#b8c0dd;">GSSのquestionsシートを確認してね。</div>
+            </div>`;
+          return;
+        }
 
         if(state.step < questions.length){
           const q = questions[state.step];
@@ -367,7 +429,6 @@
         } else {
           const win = Object.entries(state.score).sort((a,b)=>b[1]-a[1])[0][0];
           const r = results[win];
-
           const list = (recs[win] && recs[win].length) ? recs[win] : [];
 
           app.innerHTML = `
@@ -397,9 +458,8 @@
       }
 
       function choose(idx){
-        const sc = questions[state.step].choices[idx].s;
-
-        Object.keys(sc).forEach(k => state.score[k] += sc[k]);
+        const sc = questions[state.step].choices[idx].s || {};
+        Object.keys(sc).forEach(k => state.score[k] = (state.score[k] || 0) + sc[k]);
 
         state.answers[state.step] = { idx: Number(idx), sc };
 
@@ -414,7 +474,7 @@
 
           const prev = state.answers[state.step];
           if(prev && prev.sc){
-            Object.keys(prev.sc).forEach(k => state.score[k] -= prev.sc[k]);
+            Object.keys(prev.sc).forEach(k => state.score[k] = (state.score[k] || 0) - prev.sc[k]);
           }
 
           state.answers[state.step] = undefined;
@@ -432,7 +492,10 @@
         document.querySelector('.scroll-area').scrollTo(0,0);
       };
 
+      // 初期表示
       render();
+      // GSSから読み込み（設問・占い師）
+      loadQuestionsFromSheet();
       loadRecsFromSheet();
     })();
   </script>
