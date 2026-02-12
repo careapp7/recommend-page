@@ -9,7 +9,6 @@
     html { height: 100dvh; overscroll-behavior: none; }
     body {
       margin: 0; padding: 0; height: 100%;
-      /* 背景：少し明るさを感じるロイヤルパープルのグラデーション */
       background: linear-gradient(180deg, #2e2254 0%, #1a1233 100%);
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro JP", Roboto, sans-serif;
       -webkit-user-select: none; user-select: none;
@@ -29,8 +28,6 @@
       --text-main: #FFFFFF;
       --text-sub:  #dcd6f7;
       --border:    rgba(255, 255, 255, 0.25);
-      
-      /* ▼ 変更: 画像「相談する」ボタンのグラデーション（水色〜薄紫） */
       --accent-grad: linear-gradient(90deg, #70C3FF 0%, #B489FF 100%);
       
       position: relative; width: 100%; height: 100%;
@@ -70,7 +67,6 @@
       width: 8px; height: 8px; border-radius: 50%;
       background: rgba(255,255,255,0.2);
     }
-    /* アクティブなドットはボタンの色に合わせる */
     .step-dot.active { 
       background: #70C3FF; 
       box-shadow: 0 0 8px rgba(112, 195, 255, 0.6);
@@ -109,7 +105,7 @@
     }
     .res-title {
       font-size: 22px; font-weight: 800; margin-bottom: 12px;
-      color: #70C3FF; /* タイトルも水色系に */
+      color: #70C3FF;
       text-shadow: 0 0 10px rgba(112, 195, 255, 0.3);
     }
     .res-body { font-size: 15px; line-height: 1.8; color: #fff; white-space: pre-line; }
@@ -128,20 +124,15 @@
       border: 1px solid rgba(255,255,255,0.1);
     }
     
-    /* ▼ 変更: CTAボタン（「見る」ボタン）のデザインを「相談する」に合わせる */
+    /* ▼ 修正: アイコン（::before）を削除し、純粋なテキストボタンに変更 */
     .btn-cta {
       background: var(--accent-grad);
-      color: #fff; /* 文字は白 */
+      color: #fff;
       font-size: 13px; font-weight: 700;
       padding: 10px 20px; border-radius: 99px;
       text-decoration: none; white-space: nowrap;
-      box-shadow: 0 4px 12px rgba(112, 195, 255, 0.3); /* 青っぽい光 */
-      display: flex; align-items: center; gap: 6px; /* アイコン用 */
-    }
-    /* 吹き出しアイコン風の装飾 */
-    .btn-cta::before {
-      content: "💬"; /* 簡易アイコン */
-      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(112, 195, 255, 0.3);
+      display: inline-block; /* flex等を削除しシンプルに */
     }
 
     /* フッター */
@@ -158,10 +149,9 @@
       padding: 8px 24px;
     }
 
-    /* アニメーション */
+    /* アニメーション & Loader */
     .fade-up { animation: fadeUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
     @keyframes fadeUp { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
-    
     .loader {
       position: absolute; inset:0; background: #2e2254; z-index: 99;
       display:flex; justify-content:center; align-items:center; transition:opacity 0.3s;
