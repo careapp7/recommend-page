@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Recommend Page</title>
 
-  <!-- ✅ ページ外側もアプリっぽい紫で埋める -->
   <style>
     html, body {
       height: 100%;
@@ -20,7 +19,6 @@
 <div id="valentine-scope">
   <style>
     #valentine-scope {
-      /* ✅ 紫テーマ（アプリ寄せ） */
       --v-bg: #160b2f;
       --v-bg2: #0f0823;
       --v-text: #f2efff;
@@ -46,7 +44,6 @@
       display: flex;
       flex-direction: column;
 
-      /* ✅ チカチカ対策：フェードイン */
       opacity: 0;
       transition: opacity .18s ease;
     }
@@ -187,7 +184,6 @@
       align-items: center;
     }
 
-    /* ✅ 丸アイコン */
     #valentine-scope .avatar {
       width: 56px;
       height: 56px;
@@ -236,7 +232,6 @@
     }
     #valentine-scope .navBtn:disabled { opacity: 0.3; }
 
-    /* ✅ ローディング表示 */
     #valentine-scope .loadingCard{
       border: 1px solid rgba(242,239,255,.10);
       background: rgba(242,239,255,.05);
@@ -264,10 +259,10 @@
   <div class="scroll-area">
     <div class="topbar">
       <div>
-        <h1 class="title" id="ui-title">Love Psychology 🍫</h1>
+        <h1 class="title" id="ui-title">Recommend</h1>
         <div class="subtitle" id="ui-subtitle">読み込み中…</div>
       </div>
-      <div class="chip" id="ui-chip"> </div>
+      <div class="chip" id="ui-chip"></div>
     </div>
 
     <div id="val-app"></div>
@@ -280,10 +275,6 @@
 
   <script>
     (function(){
-      /* ==========================
-         ✅ GSS URL
-         ========================== */
-
       // ✅ 設問（public: 2PACX）
       const QUESTIONS_CSV_URL =
         "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=1750400212&single=true&output=csv";
@@ -300,10 +291,6 @@
         "https://docs.google.com/spreadsheets/d/1-iNODBXpVHuF8500kBHvuJJG7XrR_pBGt-8FmClDB5o/gviz/tq?tqx=out:csv&gid=1350915999";
 
 
-      /* ==========================
-         ✅ 状態
-         ========================== */
-
       let questions = [];
       let recs = { A: [], B: [], C: [] };
       let results = { A:{}, B:{}, C:{} };
@@ -316,7 +303,6 @@
         noQuestions: "設問がありません"
       };
 
-      // 自然な戻る（履歴でスコアを戻す）
       let state = { step: 0, score: { A:0, B:0, C:0 }, answers: [] };
 
       const scope = document.getElementById("valentine-scope");
@@ -328,13 +314,7 @@
       const uiSubtitle = document.getElementById("ui-subtitle");
       const uiChip = document.getElementById("ui-chip");
 
-      // ✅ チカチカ防止：必要分揃ったら1回だけ描画
-      let loaded = {
-        settings: false,
-        results: false,
-        questions: false,
-        recs: false
-      };
+      let loaded = { settings:false, results:false, questions:false, recs:false };
       let booted = false;
 
       function showLoading(){
@@ -360,20 +340,13 @@
 
       function finishIfReady(){
         if(booted) return;
-        // ✅ 最低限：settings + results + questions が揃ったら起動
         if(loaded.settings && loaded.results && loaded.questions){
           booted = true;
           applyUI();
           render();
-          // ✅ フェードイン
           scope.style.opacity = "1";
         }
       }
-
-
-      /* ==========================
-         ✅ CSVユーティリティ
-         ========================== */
 
       function parseCSV(text){
         const rows = [];
@@ -415,10 +388,6 @@
         return { [t]: p };
       }
 
-
-      /* ==========================
-         ✅ 読み込み（questions）
-         ========================== */
       async function loadQuestionsFromSheet(){
         try{
           const res = await fetch(QUESTIONS_CSV_URL + "&ts=" + Date.now());
@@ -445,7 +414,6 @@
 
           questions = built;
 
-          // 状態初期化
           state.step = 0;
           state.score = {A:0,B:0,C:0};
           state.answers = [];
@@ -457,10 +425,6 @@
         }
       }
 
-
-      /* ==========================
-         ✅ 読み込み（recs）
-         ========================== */
       async function loadRecsFromSheet(){
         try{
           const res = await fetch(RECS_CSV_URL + "&ts=" + Date.now());
@@ -491,20 +455,12 @@
           recs = grouped;
 
           loaded.recs = true;
-          // recsは必須じゃないので finishIfReady は呼んでもOK
-          finishIfReady();
-
-          // 起動後なら結果画面だけ更新されるようにする（チカチカしない）
           if(booted) render();
         } catch(e){
           console.log("failed to load recs:", e);
         }
       }
 
-
-      /* ==========================
-         ✅ 読み込み（results）
-         ========================== */
       async function loadResultsFromSheet(){
         try{
           const res = await fetch(RESULTS_CSV_URL + "&ts=" + Date.now());
@@ -522,7 +478,6 @@
             };
           });
 
-          // A/B/C のどれかが入ってれば採用
           if(map.A || map.B || map.C){
             results = {
               A: map.A || {title:"",body:"",tip:""},
@@ -538,10 +493,6 @@
         }
       }
 
-
-      /* ==========================
-         ✅ 読み込み（settings）
-         ========================== */
       async function loadSettingsFromSheet(){
         try{
           const res = await fetch(SETTINGS_CSV_URL + "&ts=" + Date.now());
@@ -564,10 +515,6 @@
         }
       }
 
-
-      /* ==========================
-         ✅ 描画
-         ========================== */
       function render(){
         backBtn.disabled = (state.step === 0);
 
@@ -612,7 +559,22 @@
                   <img class="avatar" src="${x.i}">
                   <div style="flex:1; min-width:0;">
                     <div style="font-weight:bold;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${x.n}</div>
-                    <div style="font-size:11px;color:rgba(168,85,247,.95);">${x.s}</div>
+
+                    <!-- ✅ badge：見やすい“チップ表示” -->
+                    <div style="
+                      display:inline-block;
+                      font-size:11px;
+                      padding:2px 6px;
+                      border-radius:999px;
+                      color: rgba(242,239,255,.92);
+                      background: rgba(242,239,255,.10);
+                      border: 1px solid rgba(242,239,255,.12);
+                      margin-top: 2px;
+                      margin-bottom: 4px;
+                    ">
+                      ${x.s}
+                    </div>
+
                     <div style="font-size:11px;opacity:0.85;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${x.t}</div>
                   </div>
                   <a href="${x.u}" class="ctaBtn">見る</a>
@@ -626,10 +588,6 @@
         }
       }
 
-
-      /* ==========================
-         ✅ 回答・戻る・リセット
-         ========================== */
       function choose(idx){
         const sc = questions[state.step].choices[idx].s || {};
         Object.keys(sc).forEach(k => state.score[k] = (state.score[k] || 0) + sc[k]);
@@ -665,15 +623,10 @@
         document.querySelector('.scroll-area').scrollTo(0,0);
       };
 
-
-      /* ==========================
-         ✅ 初期化
-         ========================== */
-
-      // まずローディングだけ表示（ここでフェードインはしない）
+      // 初期：ローディングだけ（まだ表示しない）
       showLoading();
 
-      // 読み込み開始（揃ったら finishIfReady() で1回だけ render してフェードイン）
+      // 読み込み開始（揃ったら finishIfReady() で1回だけrender & フェードイン）
       loadQuestionsFromSheet();
       loadRecsFromSheet();
       loadResultsFromSheet();
