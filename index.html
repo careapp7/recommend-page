@@ -163,10 +163,9 @@
       margin-bottom: 12px;
       transition: .2s;
     }
-    /* スマホ用にactiveを追加（タップした瞬間） */
     #valentine-scope .choiceBtn:active {
       background: rgba(124, 77, 255, 0.3);
-      transform: scale(0.98); /* 少し沈む感触 */
+      transform: scale(0.98);
     }
 
     #valentine-scope .resultTitle {
@@ -225,7 +224,6 @@
       position: absolute;
       left: 0; right: 0; bottom: 0;
       padding: 16px;
-      /* iPhoneの下線(Home Indicator)対応 */
       padding-bottom: calc(16px + env(safe-area-inset-bottom));
       background: #150c30;
       border-top: 1px solid rgba(255,255,255,0.1);
@@ -559,11 +557,18 @@
           const r = results[win] || { title:"", body:"", tip:"" };
           const list = (recs[win] && recs[win].length) ? recs[win] : [];
 
+          // ✅ tipの有無チェック（条件分岐追加）
+          const tipHtml = r.tip 
+            ? `<div style="background:rgba(255,255,255,0.05);padding:15px;border-radius:12px;font-size:13px;margin-bottom:20px;white-space:pre-line;border:1px solid rgba(255,255,255,0.1);color:var(--v-muted);">${r.tip}</div>` 
+            : "";
+
           app.innerHTML = `
             <div class="card">
               <div class="resultTitle">${r.title || ""}</div>
               <div class="resultBody">${r.body || ""}</div>
-              <div style="background:rgba(255,255,255,0.05);padding:15px;border-radius:12px;font-size:13px;margin-bottom:20px;white-space:pre-line;border:1px solid rgba(255,255,255,0.1);color:var(--v-muted);">${r.tip || ""}</div>
+              
+              ${tipHtml}
+
               <div style="font-size:14px;font-weight:bold;margin-bottom:12px;color:var(--v-text);">${ui.recsHeading || "おすすめ"}</div>
 
               ${list.length ? list.map(x=>`
