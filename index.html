@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Recommend Page</title>
 
-  <!-- ✅ ページ外側もアプリっぽい紫で埋めて“切り替わった感”を消す -->
+  <!-- ✅ ページ外側もアプリっぽい紫で埋める -->
   <style>
     html, body {
       height: 100%;
       margin: 0;
-      background: #160b2f; /* 深い紫 */
+      background: #160b2f;
     }
   </style>
 </head>
@@ -45,6 +45,10 @@
       isolation: isolate;
       display: flex;
       flex-direction: column;
+
+      /* ✅ チカチカ対策：フェードイン */
+      opacity: 0;
+      transition: opacity .18s ease;
     }
 
     #valentine-scope * {
@@ -81,7 +85,7 @@
       color: var(--v-muted);
       font-size: 12px;
       margin-top: 4px;
-      white-space: pre-line; /* \n を改行として表示 */
+      white-space: pre-line;
     }
 
     #valentine-scope .chip {
@@ -183,7 +187,7 @@
       align-items: center;
     }
 
-    /* ✅ 丸アイコン（見やすい） */
+    /* ✅ 丸アイコン */
     #valentine-scope .avatar {
       width: 56px;
       height: 56px;
@@ -232,6 +236,25 @@
     }
     #valentine-scope .navBtn:disabled { opacity: 0.3; }
 
+    /* ✅ ローディング表示 */
+    #valentine-scope .loadingCard{
+      border: 1px solid rgba(242,239,255,.10);
+      background: rgba(242,239,255,.05);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    #valentine-scope .spinner{
+      width: 18px; height: 18px;
+      border-radius: 999px;
+      border: 2px solid rgba(242,239,255,.22);
+      border-top-color: rgba(242,239,255,.85);
+      display:inline-block;
+      animation: spin .8s linear infinite;
+      vertical-align: -3px;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     @keyframes val-slideUp {
       from { opacity:0; transform:translateY(10px); }
       to { opacity:1; transform:translateY(0); }
@@ -242,9 +265,9 @@
     <div class="topbar">
       <div>
         <h1 class="title" id="ui-title">Love Psychology 🍫</h1>
-        <div class="subtitle" id="ui-subtitle">バレンタイン直前。<br>今のあなたの「攻め方」診断</div>
+        <div class="subtitle" id="ui-subtitle">読み込み中…</div>
       </div>
-      <div class="chip" id="ui-chip">30秒</div>
+      <div class="chip" id="ui-chip"> </div>
     </div>
 
     <div id="val-app"></div>
@@ -258,18 +281,18 @@
   <script>
     (function(){
       /* ==========================
-         ✅ ここがGSS URL（あなたのやつ）
+         ✅ GSS URL
          ========================== */
 
-      // ✅ 設問（public: 2PACXのほう）
+      // ✅ 設問（public: 2PACX）
       const QUESTIONS_CSV_URL =
         "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=1750400212&single=true&output=csv";
 
-      // ✅ 占い師（public: 2PACXのほう）
+      // ✅ 占い師（public: 2PACX）
       const RECS_CSV_URL =
         "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=0&single=true&output=csv";
 
-      // ✅ results / settings（editのほう：共有が“リンク全員閲覧”になってる必要あり）
+      // ✅ results / settings（edit：共有が“リンク全員閲覧”必要）
       const RESULTS_CSV_URL =
         "https://docs.google.com/spreadsheets/d/1-iNODBXpVHuF8500kBHvuJJG7XrR_pBGt-8FmClDB5o/gviz/tq?tqx=out:csv&gid=257661142";
 
@@ -278,43 +301,25 @@
 
 
       /* ==========================
-         ✅ 保険（読めなくても動く）
+         ✅ 状態
          ========================== */
 
-      const fallbackQuestions = [
-        { text: "バレンタイン当日、理想のムーブは？", choices: [{l:"ストレートに渡して、一言添える",s:{A:2}},{l:"軽いノリで渡して、反応を見る",s:{B:2}},{l:"当日は様子見。別日に渡したい",s:{C:2}}] },
-        { text: "チョコを選ぶならどれ？", choices: [{l:"限定・新作・話題のやつ（勢い！）",s:{A:2}},{l:"上品で大人っぽい、ちょいビター系",s:{B:2}},{l:"定番の安心感。ミルク系でほっとする",s:{C:2}}] },
-        { text: "気になる人から返信が遅いときは？", choices: [{l:"待つより動く。軽く追いメッセする",s:{A:2}},{l:"既読/未読や空気を見て調整",s:{B:2}},{l:"相手のペースがあるし…と一旦落ち着く",s:{C:2}}] },
-        { text: "距離を縮めるときに大事なのは？", choices: [{l:"勢いとタイミング（チャンスは掴む）",s:{A:2}},{l:"駆け引きじゃなく“空気の読み合い”",s:{B:2}},{l:"信頼。ゆっくりでも確実に近づきたい",s:{C:2}}] },
-        { text: "渡すならどんな形がしっくりくる？", choices: [{l:"直接渡す！短くても言葉を添える",s:{A:2}},{l:"さりげなく。二人きりのタイミングで",s:{B:2}},{l:"手紙 or メモで気持ちを丁寧に伝える",s:{C:2}}] }
-      ];
-
-      let results = {
-        A: { title: "攻めスイートタイプ 🍓", body: "好きになったら素直に行けるタイプ。恋は“流れ”より“一手”で動かすのが得意です。勢いのまま詰めすぎないのがポイント。", tip: "💡 おすすめの一手：『このあと少しだけ時間ある？』と軽い提案を。" },
-        B: { title: "駆け引きビタータイプ ☕", body: "相手の温度感を読みながら、ちょうどいい距離に合わせられるタイプ。考えすぎて動けなくならないように注意。", tip: "💡 おすすめの一手：『会えたら渡したいものがある』と含みを持たせて。" },
-        C: { title: "じっくりミルクタイプ 🥛", body: "安心感と誠実さで距離を縮めるタイプ。相手の心を大切に扱えるのが魅力です。遠慮しすぎてチャンスを逃さないで。", tip: "💡 おすすめの一手：一言メモを添える。『いつもありがとう』だけで十分強い。"}
-      };
-
+      let questions = [];
+      let recs = { A: [], B: [], C: [] };
+      let results = { A:{}, B:{}, C:{} };
       let ui = {
-        title: "Love Psychology 🍫",
-        subtitle: "バレンタイン直前。\n今のあなたの「攻め方」診断",
-        chip: "30秒",
-        recsHeading: "相性の良い占い師",
+        title: "Recommend",
+        subtitle: "読み込み中…",
+        chip: "",
+        recsHeading: "おすすめ",
         loadingRecs: "（占い師リストを読み込み中、または未設定です）",
         noQuestions: "設問がありません"
       };
 
-
-      /* ==========================
-         ✅ 状態
-         ========================== */
-
-      let questions = fallbackQuestions;
-      let recs = { A: [], B: [], C: [] };
-
       // 自然な戻る（履歴でスコアを戻す）
       let state = { step: 0, score: { A:0, B:0, C:0 }, answers: [] };
 
+      const scope = document.getElementById("valentine-scope");
       const app = document.getElementById("val-app");
       const backBtn = document.getElementById("val-backBtn");
       const resetBtn = document.getElementById("val-resetBtn");
@@ -323,14 +328,46 @@
       const uiSubtitle = document.getElementById("ui-subtitle");
       const uiChip = document.getElementById("ui-chip");
 
+      // ✅ チカチカ防止：必要分揃ったら1回だけ描画
+      let loaded = {
+        settings: false,
+        results: false,
+        questions: false,
+        recs: false
+      };
+      let booted = false;
+
+      function showLoading(){
+        app.innerHTML = `
+          <div class="loadingCard">
+            <div style="font-size:14px;font-weight:700;margin-bottom:8px;">読み込み中…</div>
+            <div style="font-size:12px;color:var(--v-muted);">
+              <span class="spinner"></span>
+              コンテンツを準備しています
+            </div>
+          </div>
+        `;
+      }
+
       function applyUI(){
         uiTitle.textContent = ui.title || "";
         uiSubtitle.textContent = (ui.subtitle || "").replace(/\\n/g, "\n");
 
         const chipText = (ui.chip || "").trim();
         uiChip.textContent = chipText;
-        // ✅ chipが空ならチップ自体を消す（シームレス）
         uiChip.style.display = chipText ? "inline-block" : "none";
+      }
+
+      function finishIfReady(){
+        if(booted) return;
+        // ✅ 最低限：settings + results + questions が揃ったら起動
+        if(loaded.settings && loaded.results && loaded.questions){
+          booted = true;
+          applyUI();
+          render();
+          // ✅ フェードイン
+          scope.style.opacity = "1";
+        }
       }
 
 
@@ -406,14 +443,15 @@
             .sort((a,b) => a.qid - b.qid)
             .map(x => ({ text: x.text, choices: x.choices }));
 
-          if(built.length){
-            questions = built;
-            state.step = 0;
-            state.score = {A:0,B:0,C:0};
-            state.answers = [];
-          }
+          questions = built;
 
-          render();
+          // 状態初期化
+          state.step = 0;
+          state.score = {A:0,B:0,C:0};
+          state.answers = [];
+
+          loaded.questions = true;
+          finishIfReady();
         } catch(e){
           console.log("failed to load questions:", e);
         }
@@ -451,7 +489,13 @@
           });
 
           recs = grouped;
-          render();
+
+          loaded.recs = true;
+          // recsは必須じゃないので finishIfReady は呼んでもOK
+          finishIfReady();
+
+          // 起動後なら結果画面だけ更新されるようにする（チカチカしない）
+          if(booted) render();
         } catch(e){
           console.log("failed to load recs:", e);
         }
@@ -478,14 +522,17 @@
             };
           });
 
+          // A/B/C のどれかが入ってれば採用
           if(map.A || map.B || map.C){
             results = {
-              A: map.A || results.A,
-              B: map.B || results.B,
-              C: map.C || results.C
+              A: map.A || {title:"",body:"",tip:""},
+              B: map.B || {title:"",body:"",tip:""},
+              C: map.C || {title:"",body:"",tip:""}
             };
-            render();
           }
+
+          loaded.results = true;
+          finishIfReady();
         } catch(e){
           console.log("failed to load results:", e);
         }
@@ -509,8 +556,9 @@
           });
 
           ui = { ...ui, ...map };
-          applyUI();
-          render();
+
+          loaded.settings = true;
+          finishIfReady();
         } catch(e){
           console.log("failed to load settings:", e);
         }
@@ -518,7 +566,7 @@
 
 
       /* ==========================
-         ✅ 画面描画
+         ✅ 描画
          ========================== */
       function render(){
         backBtn.disabled = (state.step === 0);
@@ -554,10 +602,10 @@
 
           app.innerHTML = `
             <div class="card">
-              <div class="resultTitle">${r.title}</div>
-              <div class="resultBody">${r.body}</div>
-              <div style="background:rgba(168,85,247,.12);padding:10px;border-radius:8px;font-size:13px;margin-bottom:15px;white-space:pre-line;border:1px solid rgba(242,239,255,.10);">${r.tip}</div>
-              <div style="font-size:14px;font-weight:bold;margin-bottom:10px;color:var(--v-text);">${ui.recsHeading}</div>
+              <div class="resultTitle">${r.title || ""}</div>
+              <div class="resultBody">${r.body || ""}</div>
+              <div style="background:rgba(168,85,247,.12);padding:10px;border-radius:8px;font-size:13px;margin-bottom:15px;white-space:pre-line;border:1px solid rgba(242,239,255,.10);">${r.tip || ""}</div>
+              <div style="font-size:14px;font-weight:bold;margin-bottom:10px;color:var(--v-text);">${ui.recsHeading || "おすすめ"}</div>
 
               ${list.length ? list.map(x=>`
                 <div class="recCard">
@@ -571,7 +619,7 @@
                 </div>
               `).join('') : `
                 <div style="font-size:12px;color:var(--v-muted);opacity:.95;">
-                  ${ui.loadingRecs}
+                  ${ui.loadingRecs || "（読み込み中）"}
                 </div>
               `}
             </div>`;
@@ -621,10 +669,11 @@
       /* ==========================
          ✅ 初期化
          ========================== */
-      applyUI();
-      render();
 
-      // GSSから読み込み（全部）
+      // まずローディングだけ表示（ここでフェードインはしない）
+      showLoading();
+
+      // 読み込み開始（揃ったら finishIfReady() で1回だけ render してフェードイン）
       loadQuestionsFromSheet();
       loadRecsFromSheet();
       loadResultsFromSheet();
