@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Recommendation</title>
+  <style>
+    /* --- アプリの質感を再現するベース設定 --- */
+    html { height: 100dvh; overscroll-behavior: none; }
+    body {
+      margin: 0; padding: 0; height: 100%;
+      /* 添付画像の背景色(スポイトで抽出) */
+      background: #181029;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro JP", Roboto, sans-serif;
+      -webkit-user-select: none; user-select: none;
+      -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+<div id="app-scope">
+  <style>
+    #app-scope {
+      /* ▼ 添付画像から抽出したカラーパレット */
+      --bg-color: #181029;       /* 背景の濃い紫 */
+      --card-bg: #231938;        /* カード等の少し明るい紫 */
+      --border: rgba(147, 137, 184, 0.3); /* 薄い紫の枠線 */
+      --text-main: #ffffff;
+      --text-sub: #9e94b8;       /* 補足テキスト */
+      
+      /* アプリ内のバナーに使われているアクセントカラー */
+      --accent-grad: linear-gradient(90deg, #5EE028, #E4E913); 
+      --accent-text: #181029;    /* アクセント上の文字色 */
+
+      position: relative; width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* --- ヘッダー（シンプルに徹する） --- */
+    .header {
+      flex-shrink: 0;
+      height: 56px;
+      display: flex; align-items: center; justify-content: center;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      position: relative;
+    }
+    .header-title {
+      font-size: 16px; font-weight: 600; letter-spacing: 0.5px;
+    }
+    /* 戻るボタン（ヘッダー左） */
+    .header-back {
+      position: absolute; left: 16px; top: 0; bottom: 0;
+      display: flex; align-items: center;
+      font-size: 24px; color: var(--text-sub);
+      cursor: pointer;
+    }
+
+    /* --- メインエリア --- */
+    .main-view {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 24px 20px;
+    }
+
+    /* --- 質問UI（フラットデザイン） --- */
+    .q-step {
+      text-align: center; font-size: 12px; color: var(--text-sub); margin-bottom: 12px;
+      font-weight: bold;
+    }
+    .q-text {
+      text-align: center; font-size: 20px; font-weight: 700; line-height: 1.5;
+      margin-bottom: 32px; padding: 0 10px;
+    }
+    
+    /* 選択肢ボタン（添付画像の「プロフィール編集」ボタンに寄せる） */
+    .btn-flat {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%;
+      padding: 16px;
+      margin-bottom: 12px;
+      background: transparent; /* 背景なし */
+      border: 1px solid var(--border); /* 細い枠線 */
+      border-radius: 99px; /* 丸みのあるピル型 */
+      color: var(--text-main);
+      font-size: 14px; font-weight: 600;
+      transition: background 0.2s;
+    }
+    .btn-flat:active {
+      background: rgba(255,255,255,0.1); /* タップ時に少し明るく */
+    }
+
+    /* --- 結果画面 --- */
+    .res-card {
+      /* アプリ内のカード表現に合わせる（枠線なし、少し明るい背景） */
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 24px; margin-bottom: 24px;
+    }
+    .res-title {
+      font-size: 22px; font-weight: 700; margin-bottom: 12px;
+      color: var(--text-main);
+    }
+    .res-body {
+      font-size: 14px; line-height: 1.7; color: #ddd;
+      white-space: pre-line;
+    }
+
+    /* おすすめリスト */
+    .rec-heading {
+      font-size: 14px; font-weight: 700; color: var(--text-sub);
+      margin-bottom: 12px;
+    }
+    .rec-item {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 12px; margin-bottom: 10px;
+    }
+    .rec-img {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: #333; object-fit: cover; flex-shrink: 0;
+    }
+    /* CTAボタン（添付画像の黄色バナーの色を使用） */
+    .btn-cta {
+      background: var(--accent-grad);
+      color: var(--accent-text);
+      font-size: 12px; font-weight: 700;
+      padding: 8px 16px; border-radius: 99px;
+      text-decoration: none; white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(228, 233, 19, 0.2);
+    }
+
+    /* --- フッター --- */
+    .footer {
+      flex-shrink: 0; padding: 16px 20px;
+      background: var(--bg-color); /* 背景と同化 */
+      border-top: 1px solid rgba(255,255,255,0.05);
+      display: flex; gap: 12px;
+    }
+    .btn-nav {
+      flex: 1; padding: 12px; border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      border: none; color: var(--text-sub); font-size: 12px; font-weight: 600;
+    }
+    
+    /* ローディング */
+    .loader {
+      position: absolute; inset: 0; background: var(--bg-color); z-index: 50;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.3s;
+    }
+    .spinner {
+      width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to {transform: rotate(360deg);} }
+    
+    /* フェードインアニメーション */
+    .fade-in { animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+  </style>
+
+  <div class="loader" id="loader"><div class="spinner"></div></div>
+
+  <div class="header">
+    <div class="header-back" id="btn-back" style="display:none">‹</div>
+    <div class="header-title" id="ui-title">Recommend</div>
+  </div>
+
+  <div class="main-view" id="app-view"></div>
+
+  <div class="footer">
+    <button class="btn-nav" id="btn-reset">最初から</button>
+  </div>
+
+  <script>
+    (function(){
+      const URLs = {
+        q: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=1750400212&single=true&output=csv",
+        r: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=0&single=true&output=csv",
+        res: "https://docs.google.com/spreadsheets/d/1-iNODBXpVHuF8500kBHvuJJG7XrR_pBGt-8FmClDB5o/gviz/tq?tqx=out:csv&gid=257661142",
+        set: "https://docs.google.com/spreadsheets/d/1-iNODBXpVHuF8500kBHvuJJG7XrR_pBGt-8FmClDB5o/gviz/tq?tqx=out:csv&gid=1350915999"
+      };
+
+      let db = { q:[], r:{}, res:{}, ui:{} };
+      let state = { step: 0, score: {}, hist: [] };
+      const elView = document.getElementById('app-view');
+      const btnBack = document.getElementById('btn-back');
+
+      // データロード
+      async function init(){
+        await Promise.all([
+          loadCSV(URLs.q, parseQ),
+          loadCSV(URLs.r, parseRecs),
+          loadCSV(URLs.res, parseRes),
+          loadCSV(URLs.set, parseSet)
+        ]);
+        document.getElementById('loader').style.opacity = 0;
+        setTimeout(() => document.getElementById('loader').style.display='none', 300);
+        render();
+      }
+
+      function render(){
+        btnBack.style.display = state.step > 0 ? 'flex' : 'none';
+        
+        // 設問
+        if(state.step < db.q.length){
+          const q = db.q[state.step];
+          elView.innerHTML = `
+            <div class="fade-in">
+              <div class="q-step">Q.${state.step+1} / ${db.q.length}</div>
+              <div class="q-text">${q.text}</div>
+              <div>
+                ${q.choices.map((c,i) => `
+                  <button class="btn-flat" onclick="window.ans(${i})">${c.label}</button>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        } 
+        // 結果
+        else {
+          const win = Object.entries(state.score).sort((a,b)=>b[1]-a[1])[0] || ['A',0];
+          const type = win[0];
+          const r = db.res[type] || {};
+          const list = db.r[type] || [];
+          
+          elView.innerHTML = `
+            <div class="fade-in">
+              <div class="res-card">
+                <div class="res-title">${r.title || "診断結果"}</div>
+                <div class="res-body">${(r.body||"").replace(/\\n/g, "\n")}</div>
+              </div>
+              
+              <div class="rec-heading">${db.ui.recsHeading || "あなたへのおすすめ"}</div>
+              ${list.map(x => `
+                <div class="rec-item">
+                  <img class="rec-img" src="${x.img}" onerror="this.style.opacity=0">
+                  <div style="flex:1; min-width:0;">
+                    <div style="font-weight:700; font-size:14px;">${x.name}</div>
+                    <div style="font-size:11px; color:#9e94b8;">${x.text}</div>
+                  </div>
+                  <a href="${x.url}" class="btn-cta">見る</a>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+      }
+
+      window.ans = (idx) => {
+        const c = db.q[state.step].choices[idx];
+        Object.keys(c.score).forEach(k => state.score[k] = (state.score[k]||0)+c.score[k]);
+        state.hist.push(c.score);
+        state.step++;
+        render();
+      };
+
+      btnBack.onclick = () => {
+        if(state.step > 0){
+          state.step--;
+          const prev = state.hist.pop();
+          Object.keys(prev).forEach(k => state.score[k] -= prev[k]);
+          render();
+        }
+      };
+
+      document.getElementById('btn-reset').onclick = () => {
+        state.step=0; state.score={}; state.hist=[];
+        render();
+      };
+
+      /* CSV Loader Helpers (Same logic) */
+      async function loadCSV(u, cb){ try{ const t=await(await fetch(u+"&t="+Date.now())).text(); cb(parse(t)); }catch(e){} }
+      function parse(t){ /* (前回のparserと同じ) */
+        const rows=[]; let r=[],c="",q=false;
+        for(let i=0;i<t.length;i++){
+          let ch=t[i],n=t[i+1];
+          if(ch=='"'){q?(n=='"'?(c+='"',i++):(q=!q)):(q=!q);}
+          else if(ch==','&&!q){r.push(c);c="";}
+          else if((ch=='\n'||ch=='\r')&&!q){if(ch=='\r'&&n=='\n')i++;r.push(c);rows.push(r);r=[];c="";}
+          else c+=ch;
+        } if(c)r.push(c); if(r.length)rows.push(r);
+        const h=rows.shift().map(x=>x.trim());
+        return rows.map(rw=>{let o={};h.forEach((k,i)=>o[k]=(rw[i]||"").trim());return o;});
+      }
+      function parseQ(d){ db.q=d.map(r=>{if(!r.qtext)return null;let cs=[];[1,2,3].forEach(n=>{if(r['choice'+n])cs.push({label:r['choice'+n],score:{[(r['type'+n]||"").toUpperCase()]:Number(r['pts'+n]||0)}})});return cs.length?{text:r.qtext,choices:cs}:null}).filter(Boolean); }
+      function parseRecs(d){ d.forEach(r=>{let t=(r.type||"").toUpperCase();if(!db.r[t])db.r[t]=[];db.r[t].push(r);}); }
+      function parseRes(d){ d.forEach(r=>db.res[(r.type||"").toUpperCase()]=r); }
+      function parseSet(d){ d.forEach(r=>db.ui[r.key]=r.value); if(db.ui.title)document.getElementById('ui-title').innerText=db.ui.title; }
+
+      init();
+    })();
+  </script>
+</div>
+</body>
+</html>
