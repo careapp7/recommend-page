@@ -2,15 +2,27 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Immersive App UI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Diagnosis App</title>
   <style>
-    /* ▼ ベースリセット */
-    html, body {
-      height: 100%; margin: 0; padding: 0;
-      background: #0f0c29; /* 深い闇夜色 */
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro JP", "Hiragino Kaku Gothic ProN", Roboto, sans-serif;
-      overflow: hidden; /* スクロール禁止（アプリ化） */
+    /* --- ベースリセット（Web感を消す処理） --- */
+    html {
+      /* アドレスバー伸縮対策 */
+      height: 100dvh; 
+      /* スクロール時のバウンス禁止 */
+      overscroll-behavior: none; 
+    }
+    body {
+      margin: 0; padding: 0;
+      height: 100%;
+      background: #0f0c29;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro JP", Roboto, sans-serif;
+      /* 文字選択・長押しメニュー禁止 */
+      -webkit-user-select: none; user-select: none;
+      -webkit-touch-callout: none;
+      /* iOSでのタップ時のグレー背景を削除 */
+      -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
     }
   </style>
 </head>
@@ -22,217 +34,173 @@
       --primary: #7c4dff;
       --accent: #00e5ff;
       --glass: rgba(255, 255, 255, 0.08);
-      --glass-border: rgba(255, 255, 255, 0.15);
+      --glass-border: rgba(255, 255, 255, 0.12);
       --text: #ffffff;
       
+      /* レイアウト定義 */
       position: relative;
-      width: 100%; height: 100%;
-      color: var(--text);
-      display: flex; flex-direction: column;
+      width: 100%; 
+      height: 100%;
+      display: flex; 
+      flex-direction: column;
+      
+      /* ▼ iPhoneのノッチ・ホームバー対策 */
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      
       isolation: isolate;
+      color: white;
     }
 
-    /* --- 背景：動くオーブ（メッシュグラデーション風） --- */
-    .orb-bg {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      z-index: -1; overflow: hidden;
-      background: linear-gradient(to bottom, #1a103c, #000);
+    /* --- 背景：軽量なパーティクル（重い処理を回避） --- */
+    .bg-gradient {
+      position: absolute; top:0; left:0; width:100%; height:100%;
+      background: linear-gradient(160deg, #1a103c 0%, #000 100%);
+      z-index: -2;
     }
     .orb {
       position: absolute; border-radius: 50%;
-      filter: blur(60px); opacity: 0.6;
-      animation: floatOrb 20s infinite alternate ease-in-out;
+      filter: blur(80px); opacity: 0.4;
+      z-index: -1;
+      will-change: transform; /* GPU加速 */
+      animation: float 20s infinite alternate ease-in-out;
     }
-    .orb-1 {
-      top: -10%; left: -10%; width: 50vw; height: 50vw;
-      background: #7c4dff; animation-duration: 25s;
-    }
-    .orb-2 {
-      bottom: -10%; right: -10%; width: 60vw; height: 60vw;
-      background: #001f5c; animation-duration: 30s;
-    }
-    .orb-3 {
-      top: 40%; left: 40%; width: 30vw; height: 30vw;
-      background: #a855f7; animation-duration: 18s; opacity: 0.4;
-    }
-    @keyframes floatOrb {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(30px, 50px) scale(1.1); }
-    }
+    .orb-1 { top: -10%; left: -20%; width: 80vw; height: 80vw; background: #5b2fa8; }
+    .orb-2 { bottom: -10%; right: -20%; width: 90vw; height: 90vw; background: #002a6e; animation-duration: 25s; }
+    @keyframes float { to { transform: translate(20px, 30px); } }
 
     /* --- ヘッダー --- */
     .header {
-      padding: 20px;
+      flex-shrink: 0; /* 縮ませない */
+      padding: 16px 24px;
       display: flex; justify-content: space-between; align-items: center;
-      z-index: 10;
     }
-    .status-chip {
-      background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
-      padding: 6px 12px; border-radius: 20px; font-size: 11px; letter-spacing: 1px;
-      backdrop-filter: blur(4px);
+    .app-logo { font-weight: 800; font-size: 16px; letter-spacing: 1px; }
+    .status-badge {
+      font-size: 10px; background: rgba(255,255,255,0.1); 
+      padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);
     }
 
-    /* --- メインエリア（中央配置） --- */
+    /* --- メインエリア（スクロール可能領域） --- */
     .main-view {
-      flex: 1;
-      display: flex; flex-direction: column; justify-content: center; /* 垂直中央 */
-      padding: 24px;
+      flex: 1; /* 残りの高さを全部使う */
       position: relative;
-      perspective: 1000px; /* 3D効果用 */
-    }
-
-    /* --- プログレスバー（上部固定） --- */
-    .progress-container {
-      position: absolute; top: 0; left: 24px; right: 24px;
-      height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px;
-      overflow: hidden;
-    }
-    .progress-bar {
-      height: 100%; background: #00e5ff;
-      box-shadow: 0 0 10px #00e5ff; /* ネオン光 */
-      transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      overflow-y: auto; /* ここだけスクロール */
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch; /* 慣性スクロール */
+      padding: 20px;
+      display: flex; flex-direction: column; justify-content: center; /* 設問を中央に */
     }
 
     /* --- 質問カード --- */
-    .q-card {
-      text-align: center;
-      margin-bottom: 40px;
+    .q-container {
+      width: 100%; max-width: 500px; margin: 0 auto;
+      animation: fadeUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
-    .q-step {
-      font-size: 12px; color: #a8a8a8; margin-bottom: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
-      animation: fadeInDown 0.5s ease backwards;
+    .progress-bar {
+      height: 4px; background: rgba(255,255,255,0.1); border-radius: 4px;
+      margin-bottom: 24px; overflow: hidden;
     }
-    .q-text {
-      font-size: 24px; font-weight: 800; line-height: 1.4;
-      text-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      animation: fadeInUp 0.6s ease backwards 0.1s; /* 遅延登場 */
+    .progress-fill {
+      height: 100%; background: var(--accent);
+      width: 0%; transition: width 0.3s ease;
+      box-shadow: 0 0 8px var(--accent);
     }
+    .q-step { color: var(--accent); font-size: 12px; font-weight: 700; margin-bottom: 8px; letter-spacing: 1px; }
+    .q-text { font-size: 22px; font-weight: 700; line-height: 1.5; margin-bottom: 32px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
 
-    /* --- 選択肢ボタン（Glassmorphism） --- */
-    .choices-wrapper {
-      display: flex; flex-direction: column; gap: 16px;
-      width: 100%; max-width: 400px; margin: 0 auto;
-    }
-    .glass-btn {
-      position: relative;
-      width: 100%; padding: 20px;
-      background: var(--glass);
+    /* --- ボタン（タッチしやすい大きさ） --- */
+    .btn-choice {
+      display: block; width: 100%;
+      background: rgba(255,255,255,0.05);
       border: 1px solid var(--glass-border);
+      padding: 18px 20px;
+      margin-bottom: 12px;
       border-radius: 16px;
-      color: white; font-size: 16px; font-weight: 600;
-      text-align: left;
+      color: white; font-size: 15px; font-weight: 600; text-align: left;
+      transition: transform 0.1s, background 0.2s;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      /* タップ領域を明確に */
       cursor: pointer;
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      box-shadow: 0 4px 24px -1px rgba(0,0,0,0.2);
-      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-      overflow: hidden;
-      
-      /* アニメーション用：最初は透明 */
-      opacity: 0; transform: translateY(20px);
-      animation: fadeInUp 0.5s ease forwards;
     }
-    /* スタガーアニメーション（選択肢が順番に出てくる） */
-    .glass-btn:nth-child(1) { animation-delay: 0.2s; }
-    .glass-btn:nth-child(2) { animation-delay: 0.3s; }
-    .glass-btn:nth-child(3) { animation-delay: 0.4s; }
-
-    /* ホバー・アクティブ時のリッチな動き */
-    .glass-btn:active {
-      transform: scale(0.96);
-      background: rgba(124, 77, 255, 0.3);
-      border-color: #7c4dff;
+    .btn-choice:active {
+      transform: scale(0.97);
+      background: rgba(124, 77, 255, 0.2);
+      border-color: var(--primary);
     }
-    .glass-btn::before {
-      content: ""; position: absolute; top:0; left:0; width:4px; height:100%;
-      background: #00e5ff; opacity: 0; transition: 0.2s;
-    }
-    .glass-btn:active::before { opacity: 1; }
 
     /* --- 結果画面 --- */
-    .result-view {
-      height: 100%; overflow-y: auto; padding-top: 20px; padding-bottom: 100px;
-      -webkit-overflow-scrolling: touch;
-      animation: zoomIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    .result-content {
+      padding-bottom: 80px; /* フッター被り防止 */
+      animation: zoomIn 0.4s ease;
     }
-    .res-header {
-      text-align: center; margin-bottom: 30px;
-    }
-    .res-crown { font-size: 40px; margin-bottom: 10px; display:block; animation: pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
-    .res-title {
-      font-size: 28px; font-weight: 900;
-      background: linear-gradient(135deg, #fff 0%, #00e5ff 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      margin-bottom: 16px;
-    }
-    .res-box {
+    .res-card {
       background: rgba(0,0,0,0.3); border-radius: 20px; padding: 24px;
-      border: 1px solid var(--glass-border);
-      margin-bottom: 30px;
-      line-height: 1.8; font-size: 15px; color: #e0e0e0;
+      border: 1px solid var(--glass-border); margin-bottom: 24px;
     }
-
-    /* おすすめリスト */
     .rec-item {
-      display: flex; align-items: center; gap: 16px;
-      background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      display: flex; align-items: center; gap: 14px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
       border: 1px solid var(--glass-border);
-      padding: 16px; border-radius: 18px; margin-bottom: 12px;
+      padding: 14px; border-radius: 16px; margin-bottom: 12px;
     }
-    .rec-avatar {
-      width: 60px; height: 60px; border-radius: 50%; object-fit: cover;
-      border: 2px solid rgba(255,255,255,0.2);
-    }
+    .rec-img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background: #333; flex-shrink: 0; }
     .rec-btn {
-      background: linear-gradient(135deg, #7c4dff, #00e5ff);
-      border: none; color: #fff; padding: 10px 20px;
-      border-radius: 99px; font-weight: bold; font-size: 12px;
-      box-shadow: 0 4px 15px rgba(0, 229, 255, 0.3);
-      text-decoration: none;
+      background: var(--primary); color: white; border: none;
+      padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: bold;
+      text-decoration: none; white-space: nowrap;
     }
 
-    /* --- フッター --- */
+    /* --- フッター（画面下部固定） --- */
     .footer {
-      position: absolute; bottom: 0; left: 0; width: 100%;
-      padding: 20px; background: linear-gradient(to top, #0f0c29 80%, transparent);
-      display: flex; gap: 10px; z-index: 20;
+      flex-shrink: 0;
+      padding: 16px 24px;
+      display: flex; gap: 12px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      background: rgba(15, 12, 41, 0.8);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     }
     .nav-btn {
-      flex: 1; padding: 16px; border-radius: 16px; border: none;
-      background: rgba(255,255,255,0.1); color: #aaa; font-weight: 600;
-      backdrop-filter: blur(10px);
+      flex: 1; padding: 14px; border-radius: 12px; border: none;
+      background: rgba(255,255,255,0.1); color: #ccc; font-weight: 600;
+      font-size: 13px;
     }
-    .nav-btn:not(:disabled):active { background: rgba(255,255,255,0.2); color: #fff; }
+    .nav-btn:disabled { opacity: 0.3; }
+    .nav-btn:not(:disabled):active { background: rgba(255,255,255,0.2); color: white; }
 
-    /* --- アニメーション定義 --- */
-    @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes fadeInDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes zoomIn { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }
-    @keyframes pop { 0% { transform:scale(0); } 80% { transform:scale(1.2); } 100% { transform:scale(1); } }
+    /* --- ローディング --- */
+    .loader-view {
+      position: absolute; top:0; left:0; width:100%; height:100%;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      background: #0f0c29; z-index: 50;
+      transition: opacity 0.4s;
+    }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin-bottom: 16px;
+    }
 
-    /* ローディング */
-    .loader {
-      display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;
-    }
-    .loader-circle {
-      width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1);
-      border-top-color: #00e5ff; border-radius: 50%;
-      animation: spin 1s infinite linear; margin-bottom: 16px;
-    }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes zoomIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 
-  <div class="orb-bg">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
+  <div class="bg-gradient"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="loader-view" id="loader">
+    <div class="spinner"></div>
+    <div style="font-size:11px; letter-spacing:2px; opacity:0.7;">LOADING...</div>
   </div>
 
   <div class="header">
-    <div style="font-weight:900; font-size:18px; letter-spacing:1px;">DIAGNOSIS</div>
-    <div class="status-chip" id="ui-chip">AI BETA</div>
+    <div class="app-logo" id="ui-title">DIAGNOSIS</div>
+    <div class="status-badge" id="ui-chip">BETA</div>
   </div>
 
-  <div id="app-view" style="flex:1; position:relative; overflow:hidden;"></div>
+  <div class="main-view" id="app-view"></div>
 
   <div class="footer">
     <button class="nav-btn" id="btn-back" disabled>BACK</button>
@@ -241,7 +209,7 @@
 
   <script>
     (function(){
-      // データソース
+      // GSS URL定義
       const URLs = {
         q: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=1750400212&single=true&output=csv",
         r: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRliKpYwepLa0Z1DzzqJtDtobsdZU1uthkjiVMmIF2zTplootZrK3hpxhsyeu7GEjI5e9Zxi2UdSpye/pub?gid=0&single=true&output=csv",
@@ -249,181 +217,157 @@
         set: "https://docs.google.com/spreadsheets/d/1-iNODBXpVHuF8500kBHvuJJG7XrR_pBGt-8FmClDB5o/gviz/tq?tqx=out:csv&gid=1350915999"
       };
 
-      let db = { q:[], recs:{}, res:{}, ui:{} };
+      let db = { q:[], r:{}, res:{}, ui:{} };
       let state = { step: 0, score: {}, hist: [] };
-      const view = document.getElementById('app-view');
-      const backBtn = document.getElementById('btn-back');
+      
+      const elView = document.getElementById('app-view');
+      const elLoader = document.getElementById('loader');
+      const btnBack = document.getElementById('btn-back');
 
-      // 初期化
+      // データ取得
       async function init(){
-        renderLoader();
         await Promise.all([
-          fetchCSV(URLs.q, parseQ),
-          fetchCSV(URLs.r, parseRecs),
-          fetchCSV(URLs.res, parseRes),
-          fetchCSV(URLs.set, parseSet)
+          loadCSV(URLs.q, parseQ),
+          loadCSV(URLs.r, parseRecs),
+          loadCSV(URLs.res, parseRes),
+          loadCSV(URLs.set, parseSet)
         ]);
+        // フェードアウト
+        elLoader.style.opacity = '0';
+        setTimeout(()=>{ elLoader.style.display='none'; }, 400);
         render();
       }
 
-      function renderLoader(){
-        view.innerHTML = `<div class="loader"><div class="loader-circle"></div><div style="font-size:12px;opacity:0.7;letter-spacing:2px;">LOADING DATA</div></div>`;
-      }
-
-      // 描画ルーティング
       function render(){
-        backBtn.disabled = (state.step === 0);
-        
-        if(!db.q.length) return;
+        btnBack.disabled = (state.step === 0);
 
         // 設問モード
         if(state.step < db.q.length){
           const q = db.q[state.step];
           const pct = Math.round((state.step / db.q.length) * 100);
           
-          view.innerHTML = `
-            <div class="main-view">
-              <div class="progress-container"><div class="progress-bar" style="width:${pct}%"></div></div>
-              
-              <div class="q-card">
-                <div class="q-step">Question ${state.step + 1}</div>
-                <div class="q-text">${q.text}</div>
+          elView.innerHTML = `
+            <div class="q-container">
+              <div class="progress-bar">
+                <div class="progress-fill" style="width:${pct}%"></div>
               </div>
-
-              <div class="choices-wrapper">
+              <div class="q-step">QUESTION ${state.step+1}</div>
+              <div class="q-text">${q.text}</div>
+              
+              <div>
                 ${q.choices.map((c,i) => `
-                  <button class="glass-btn" onclick="window.onAns(${i})">
+                  <button class="btn-choice" onclick="window.ans(${i})">
                     ${c.label}
                   </button>
                 `).join('')}
               </div>
             </div>
           `;
+          
+          // 設問時は中央寄せレイアウト
+          elView.style.justifyContent = 'center';
+          elView.scrollTo(0,0);
         } 
         // 結果モード
         else {
-          renderResult();
-        }
-      }
+          const win = Object.entries(state.score).sort((a,b)=>b[1]-a[1])[0] || ['A',0];
+          const type = win[0];
+          const rData = db.res[type] || {};
+          const list = db.r[type] || [];
 
-      function renderResult(){
-        // 勝者判定
-        const win = Object.entries(state.score).sort((a,b)=>b[1]-a[1])[0] || ['A',0];
-        const type = win[0];
-        const res = db.res[type] || {};
-        const list = db.recs[type] || [];
-
-        view.innerHTML = `
-          <div class="result-view">
-            <div style="padding: 0 24px;">
-              <div class="res-header">
-                <span class="res-crown">👑</span>
-                <div style="font-size:12px;color:#00e5ff;letter-spacing:2px;margin-bottom:8px;">YOUR TYPE</div>
-                <div class="res-title">${res.title || "Unknown Type"}</div>
+          elView.innerHTML = `
+            <div class="result-content">
+              <div class="res-card">
+                <div style="font-size:12px;color:var(--accent);letter-spacing:1px;margin-bottom:8px;">DIAGNOSIS RESULT</div>
+                <div style="font-size:24px;font-weight:800;margin-bottom:12px;line-height:1.3;">${rData.title || "結果"}</div>
+                <div style="font-size:15px;line-height:1.7;opacity:0.9;white-space:pre-line;">${(rData.body||"").replace(/\\n/g, "\n")}</div>
               </div>
 
-              <div class="res-box">
-                ${(res.body||"").replace(/\\n/g, "<br>")}
-              </div>
-
-              <div style="font-weight:800;margin-bottom:16px;font-size:18px;">Recommended</div>
-              
+              <div style="font-weight:bold;margin-bottom:12px;padding-left:4px;">RECOMMEND</div>
               ${list.map(x => `
                 <div class="rec-item">
-                  <img class="rec-avatar" src="${x.img}" onerror="this.style.background='#333'">
+                  <img class="rec-img" src="${x.img}" onerror="this.style.opacity=0">
                   <div style="flex:1;min-width:0;">
-                    <div style="font-weight:700;margin-bottom:4px;">${x.name}</div>
-                    <div style="font-size:11px;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${x.text}</div>
+                    <div style="font-weight:700;font-size:14px;">${x.name}</div>
+                    <div style="font-size:11px;opacity:0.6;">${x.text}</div>
                   </div>
-                  <a href="${x.url}" target="_blank" class="rec-btn">VIEW</a>
+                  <a href="${x.url}" class="rec-btn" target="_blank">見る</a>
                 </div>
               `).join('')}
             </div>
-          </div>
-        `;
+          `;
+          
+          // 結果時は上詰めレイアウト
+          elView.style.justifyContent = 'flex-start';
+        }
       }
 
-      // アクション
-      window.onAns = (idx) => {
+      window.ans = (idx) => {
         const q = db.q[state.step];
-        const choice = q.choices[idx];
-        
-        // スコア加算
-        Object.keys(choice.score).forEach(k => {
-          state.score[k] = (state.score[k]||0) + choice.score[k];
-        });
-        state.hist[state.step] = choice.score;
+        const c = q.choices[idx];
+        Object.keys(c.score).forEach(k => state.score[k] = (state.score[k]||0) + c.score[k]);
+        state.hist.push(c.score);
         state.step++;
         render();
       };
 
-      backBtn.onclick = () => {
-        if(state.step > 0){
+      btnBack.onclick = () => {
+        if(state.step>0){
           state.step--;
-          const prevScore = state.hist[state.step];
-          Object.keys(prevScore).forEach(k => state.score[k] -= prevScore[k]);
+          const prev = state.hist.pop();
+          Object.keys(prev).forEach(k => state.score[k] -= prev[k]);
           render();
         }
       };
-
+      
       document.getElementById('btn-reset').onclick = () => {
-        state = { step:0, score:{}, hist:[] };
+        state.step=0; state.score={}; state.hist=[];
         render();
       };
 
-      // --- CSV Parser (簡易版) ---
-      async function fetchCSV(u, cb){
+      // CSV Parser
+      async function loadCSV(u, cb){
         try{
-          const t = await (await fetch(u+"&t="+Date.now())).text();
-          const r = parseText(t);
-          cb(r);
-        }catch(e){console.error(e);}
+          const r = await fetch(u + "&t=" + Date.now());
+          const t = await r.text();
+          cb(parse(t));
+        }catch(e){}
       }
-      function parseText(txt){
+      function parse(txt){
         const rows=[]; let r=[],c="",q=false;
         for(let i=0;i<txt.length;i++){
-          let char=txt[i], next=txt[i+1];
-          if(char=='"'){ q? (next=='"'?(c+='"',i++):(q=!q)) : (q=!q); }
-          else if(char==','&&!q){ r.push(c); c=""; }
-          else if((char=='\n'||char=='\r')&&!q){ 
-            if(char=='\r'&&next=='\n')i++;
-            r.push(c); rows.push(r); r=[]; c=""; 
-          } else c+=char;
+          let ch=txt[i], n=txt[i+1];
+          if(ch=='"'){ q? (n=='"'?(c+='"',i++):(q=!q)) : (q=!q); }
+          else if(ch==','&&!q){ r.push(c); c=""; }
+          else if((ch=='\n'||ch=='\r')&&!q){ if(ch=='\r'&&n=='\n')i++; r.push(c); rows.push(r); r=[]; c=""; }
+          else c+=ch;
         }
         if(c) r.push(c); if(r.length) rows.push(r);
         const h = rows.shift().map(x=>x.trim());
-        return rows.map(row => {
-          let o={}; h.forEach((k,i)=>o[k]=(row[i]||"").trim()); return o;
+        return rows.map(rw => {
+          let o={}; h.forEach((k,i)=>o[k]=(rw[i]||"").trim()); return o;
         });
       }
 
-      // データ整形
+      // Data Processors
       function parseQ(d){
-        db.q = d.map(r => {
-          if(!r.qtext) return null;
-          let cs = [];
+        db.q = d.map(r=>{
+          if(!r.qtext)return null;
+          let cs=[];
           [1,2,3].forEach(n=>{
-            if(r['choice'+n]){
-              let s={}; s[(r['type'+n]||"").toUpperCase()] = Number(r['pts'+n]||0);
-              cs.push({label:r['choice'+n], score:s});
-            }
+            if(r['choice'+n]) cs.push({label:r['choice'+n], score:{[(r['type'+n]||"").toUpperCase()]:Number(r['pts'+n]||0)}});
           });
-          return cs.length ? {text:r.qtext, choices:cs} : null;
+          return cs.length?{text:r.qtext, choices:cs}:null;
         }).filter(Boolean);
       }
       function parseRecs(d){
-        d.forEach(r => {
-          let t=(r.type||"").toUpperCase();
-          if(!db.recs[t]) db.recs[t]=[];
-          db.recs[t].push(r);
-        });
+        d.forEach(r=>{ let t=(r.type||"").toUpperCase(); if(!db.r[t])db.r[t]=[]; db.r[t].push(r); });
       }
-      function parseRes(d){
-        d.forEach(r => db.res[(r.type||"").toUpperCase()] = r);
-      }
+      function parseRes(d){ d.forEach(r=>db.res[(r.type||"").toUpperCase()]=r); }
       function parseSet(d){
-        d.forEach(r => db.ui[r.key] = r.value);
-        if(db.ui.chip) document.getElementById('ui-chip').innerText = db.ui.chip;
+        d.forEach(r=>db.ui[r.key]=r.value);
+        if(db.ui.title) document.getElementById('ui-title').innerText=db.ui.title;
+        if(db.ui.chip) document.getElementById('ui-chip').innerText=db.ui.chip;
       }
 
       init();
